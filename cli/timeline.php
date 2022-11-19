@@ -63,19 +63,24 @@ if(!file_exists($dir)){
 	mkdir($dir);
 }
 
-$dir      = realpath($dir);
-$filename = sprintf('%s/%s.json', $dir, md5($query));
+$dir          = realpath($dir);
+$timelineJSON = sprintf('%s/%s.json', $dir, md5($query));
+$userJSON     = sprintf('%s/%s-users.json', $dir, md5($query));
 
-$tl = getTimeline($query, $fromFile);
-$js = json_encode($tl, JSON_THROW_ON_ERROR|JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_PRETTY_PRINT);
+[$timeline, $users] = getTimeline($query, $fromFile);
+$tl = json_encode($timeline, JSON_THROW_ON_ERROR|JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_PRETTY_PRINT);
+$ul = json_encode($users, JSON_THROW_ON_ERROR|JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_PRETTY_PRINT);
 
-file_put_contents($filename, $js);
+file_put_contents($timelineJSON, $tl);
+file_put_contents($userJSON, $ul);
 
-echo sprintf("data for '%s' saved in: %s\n", $query, realpath($filename));
+echo sprintf("timeline data for '%s' saved in: %s\n", $query, realpath($timelineJSON));
+echo sprintf("user data saved in: %s\n", realpath($userJSON));
 
-$tl = json_decode(file_get_contents($filename), true, 512, JSON_THROW_ON_ERROR);
+$tl = json_decode(file_get_contents($timelineJSON), true, 512, JSON_THROW_ON_ERROR);
+$ul = json_decode(file_get_contents($userJSON), true, 512, JSON_THROW_ON_ERROR);
 
-echo sprintf('fetched %s tweets', count($tl));
+echo sprintf("fetched %s tweets from %s users\n", count($tl), count($ul));
 
 
 exit;
@@ -142,19 +147,19 @@ function getTimeline(string $query, bool $fromFile = false):array{
 		if($tweet['quoted_status_id'] !== null && isset($tweets[$tweet['quoted_status_id']])){
 			$qt = $tweets[$tweet['quoted_status_id']];
 
-			if(isset($users[$qt['user_id']])){
-				$qt['user'] = $users[$qt['user_id']];
-			}
+#			if(isset($users[$qt['user_id']])){
+#				$qt['user'] = $users[$qt['user_id']];
+#			}
 
 			$tweet['quoted_status'] = $qt;
 		}
 
-		$tweet['user'] = $users[$tweet['user_id']];
+#		$tweet['user'] = $users[$tweet['user_id']];
 
 		$v = $tweet;
 	}
 
-	return $timeline;
+	return [$timeline, $users];
 }
 
 /**
