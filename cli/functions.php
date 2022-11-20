@@ -48,7 +48,11 @@ function request(string $url, array $params = null):array{
  *
  * @see https://developer.twitter.com/en/docs/twitter-api/data-dictionary/object-model/tweet
  */
-function parseTweet(object $tweet):array{
+function parseTweet(array|object $tweet):array{
+
+	if(is_array($tweet)){
+		$tweet = (object)$tweet; // cruel
+	}
 
 	$text       = $tweet->full_text;
 	$mediaItems = [];
@@ -83,6 +87,8 @@ function parseTweet(object $tweet):array{
 		'is_quote_status'         => $tweet->is_quote_status ?? false,
 		'quoted_status_id'        => $tweet->quoted_status_id ?? null,
 		'quoted_status'           => null,
+		'retweeted_status_id'     => $tweet->retweeted_status_id ?? null,
+		'retweeted_status'        => null,
 		'self_thread'             => $tweet->self_thread->id ?? null,
 		'conversation_id'         => $tweet->conversation_id ?? null,
 		'place'                   => $tweet->place ?? null,
@@ -97,7 +103,11 @@ function parseTweet(object $tweet):array{
  *
  * @see https://developer.twitter.com/en/docs/twitter-api/data-dictionary/object-model/user
  */
-function parseUser(object $user):array{
+function parseUser(array|object $user):array{
+
+	if(is_array($user)){
+		$user = (object)$user;
+	}
 
 	foreach(['name', 'description', 'location', 'url'] as $var){
 		${$var} = preg_replace('/\s+/', ' ', $user->{$var} ?? '');
@@ -142,7 +152,12 @@ function parseUser(object $user):array{
 /**
  * @see https://developer.twitter.com/en/docs/twitter-api/data-dictionary/object-model/media
  */
-function parseMedia(object $media):array{
+function parseMedia(array|object $media):array{
+
+	if(is_array($media)){
+		$media = (object)$media;
+	}
+
 	return [
 		'id'                 => $media->id,
 		'media_key'          => $media->media_key ?? null,
