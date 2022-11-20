@@ -71,13 +71,14 @@ $tokenJson = '{
 #$tokenJson = file_get_contents(__DIR__.'/../config/Twitter.token.json');
 
 /** @var \chillerlan\OAuth\Core\AccessToken $token */
-$token = (new AccessToken)->fromJSON($tokenJson);
-
-$archive->importUserToken($token);
+$token = (new AccessToken)->fromJSON(json: $tokenJson);
 
 // run
 $archive
-	->getFollowers()
-	->getFollowing()
-	->getLists(includeForeign: true)
+#	->importUserToken(token: $token)
+#	->getLists(includeForeign: true)
+	// no token required for these endpoints
+	// if no token is given, the $screen_name parameter is required
+	->getFollowers(screen_name: null)
+	->getFollowing(screen_name: null)
 ;

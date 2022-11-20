@@ -13,6 +13,7 @@ namespace codemasher\TwitterArchive;
 use chillerlan\HTTP\Utils\MessageUtil;
 use chillerlan\OAuth\Core\AccessToken;
 use chillerlan\OAuth\Providers\Twitter\Twitter;
+use chillerlan\OAuth\Providers\Twitter\TwitterCC;
 use chillerlan\OAuth\Storage\MemoryStorage;
 use chillerlan\OAuth\Storage\OAuthStorageInterface;
 use chillerlan\Settings\SettingsContainerInterface;
@@ -69,6 +70,7 @@ class TwitterArchive{
 	protected LoggerInterface            $logger;
 	protected OAuthStorageInterface      $storage;
 	protected Twitter                    $twitter;
+	protected TwitterCC                  $twitterCC;
 
 	protected string $storageDir;
 	protected string $publicDir;
@@ -77,6 +79,7 @@ class TwitterArchive{
 	protected string $userID;
 	protected string $screenName;
 	protected int    $userCreated;
+	protected bool   $hasToken = false;
 
 	public function __construct(
 		ClientInterface            $http,
@@ -87,6 +90,7 @@ class TwitterArchive{
 		$this->options   = $options;
 		$this->logger    = $logger ?? new NullLogger;
 		$this->twitter   = new Twitter($this->http, new MemoryStorage, $this->options, $this->logger);
+		$this->twitterCC = new TwitterCC($this->http, new MemoryStorage, $this->options, $this->logger);
 
 		$storageDir = realpath($this->options->storageDir);
 		$publicDir  = realpath($this->options->publicDir);
@@ -109,6 +113,7 @@ class TwitterArchive{
 			mkdir($this->profileDir);
 		}
 
+		$this->twitterCC->getClientCredentialsToken();
 	}
 
 	/**
@@ -138,6 +143,7 @@ class TwitterArchive{
 	 * tries to verify a user token and returns the user object on success, null otherwise
 	 */
 	protected function verifyToken(AccessToken $token):?object{
+		$this->hasToken = false;
 		// use a temporary storage to verify the token
 		$storage = new MemoryStorage;
 		$storage->storeAccessToken($this->twitter->serviceName, $token);
@@ -170,6 +176,8 @@ class TwitterArchive{
 				$user = MessageUtil::decodeJSON($response);
 
 				if(isset($user->id, $user->screen_name)){
+					$this->hasToken = true;
+
 					return $user;
 				}
 
@@ -236,7 +244,7 @@ class TwitterArchive{
 		}
 
 		// use app auth on certain endpoints for improved request limits
-		$client = in_array($endpointMethod, ['statusesRetweetersIds'/*, 'followersIds', 'friendsIds'*/]) ? 'twitterCC' : 'twitter';
+		$client = !$this->hasToken && in_array($endpointMethod, ['followersIds', 'friendsIds']) ? 'twitterCC' : 'twitter';
 		$params = array_merge(['cursor' => -1, 'stringify_ids' => 'false'], $params);
 		$ids    = [];
 
@@ -303,19 +311,23 @@ class TwitterArchive{
 	/**
 	 *
 	 */
-	public function getFollowers():self{
-		$ids = $this->fetchIDs('followersIds', ['screen_name' => $this->screenName], true);
-		$this->saveToJson($this->screenName.'_followers', $this->getProfiles($ids));
+	public function getFollowers(string $screen_name = null):self{
+		$screen_name ??= $this->screenName;
+
+		$ids = $this->fetchIDs('followersIds', ['screen_name' => $screen_name], true);
+		$this->saveToJson($screen_name.'_followers', $this->getProfiles($ids));
 
 		return $this;
 	}
 
 	/**
-	 *<a rel="me" href="https://mastodon.social/@codemasher">Mastodon</a>
+	 *
 	 */
-	public function getFollowing():self{
-		$ids = $this->fetchIDs('friendsIds', ['screen_name' => $this->screenName], true);
-		$this->saveToJson($this->screenName.'_following', $this->getProfiles($ids));
+	public function getFollowing(string $screen_name = null):self{
+		$screen_name ??= $this->screenName;
+
+		$ids = $this->fetchIDs('friendsIds', ['screen_name' => $screen_name], true);
+		$this->saveToJson($screen_name.'_following', $this->getProfiles($ids));
 
 		return $this;
 	}
@@ -334,8 +346,7 @@ class TwitterArchive{
 	}
 
 	/**
-	 * Fetches up to 100 user profiles and updates the profile table with that data.
-	 * Profiles will be scanned during the update and suspect IDs will be added to the block list.
+	 * Fetches up to 100 user profiles
 	 *
 	 * @see https://developer.twitter.com/en/docs/twitter-api/v1/accounts-and-users/follow-search-get-users/api-reference/get-users-lookup
 	 * @see https://developer.twitter.com/en/docs/twitter-api/v1/data-dictionary/object-model/user
@@ -354,7 +365,8 @@ class TwitterArchive{
 		}
 
 		try{
-			$response = $this->twitter->usersLookup([
+			$client   = !$this->hasToken ? 'twitterCC' : 'twitter';
+			$response = $this->{$client}->usersLookup([
 				'user_id'          => implode(',', $ids),
 				'include_entities' => 'false',
 				'skip_status'      => 'true',
@@ -562,8 +574,7 @@ class TwitterArchive{
 	}
 
 	/**
-	 * Fetches all users of a given (private) list from the currently authenticated usr's account, puts them in the profile table
-	 * and runs the given block action (always, block, never) on them.
+	 * Fetches all users of a given (private) list from the currently authenticated usr's account
 	 */
 	protected function fetchList(object $list):array{
 
