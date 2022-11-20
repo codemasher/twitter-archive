@@ -9,12 +9,12 @@
  */
 
 use chillerlan\OAuth\Core\AccessToken;
+use codemasher\TwitterArchive\TwitterArchive;
 
 /**
  * @var \Psr\Log\LoggerInterface $logger
  * @var \Psr\Http\Client\ClientInterface $http
  * @var \codemasher\TwitterArchive\TwitterArchiveOptions $options
- * @var \codemasher\TwitterArchive\TwitterArchive $archive
  */
 require_once __DIR__.'/common.php';
 
@@ -34,8 +34,9 @@ $tokenJson = '{
 // alternatively, load the token from a file saved via get-token.php
 #$tokenJson = file_get_contents(__DIR__.'/../config/Twitter.token.json');
 
+$archive = new TwitterArchive($http, $options, $logger);
 /** @var \chillerlan\OAuth\Core\AccessToken $token */
-$token = (new AccessToken)->fromJSON(json: $tokenJson);
+$token   = (new AccessToken)->fromJSON(json: $tokenJson);
 
 // run
 $archive

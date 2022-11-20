@@ -10,7 +10,6 @@
 
 use chillerlan\DotEnv\DotEnv;
 use chillerlan\HTTP\Psr18\CurlClient;
-use codemasher\TwitterArchive\TwitterArchive;
 use codemasher\TwitterArchive\TwitterArchiveOptions;
 use Monolog\Formatter\LineFormatter;
 use Monolog\Handler\StreamHandler;
@@ -41,4 +40,3 @@ $logHandler = (new StreamHandler('php://stdout', LogLevel::INFO))
 // a logger instance
 $logger     = new Logger('log', [$logHandler]); // PSR-3
 $http       = new CurlClient($options, null, $logger); // PSR-18
-$archive    = new TwitterArchive($http, $options, $logger);

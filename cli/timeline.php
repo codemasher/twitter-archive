@@ -45,7 +45,7 @@ $token = 'Bearer AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs=1Zv
  *   - "@username include:nativeretweets filter:nativeretweets" for RTs (returns RTs of the past week only)
  *   - "to:username" for @mentions and replies
  */
-$query = '@username include:nativeretweets';
+$query = 'from:dril';
 
 /*
  * continue/run from stored responses, useful if the run gets interrupted for whatever reason
@@ -55,7 +55,7 @@ $fromFile = true;
 /*
  * the storage path for the raw responses, a different directory per query is recommended
  */
-$dir = __DIR__.'/from-username';
+$dir = __DIR__.'/from-dril';
 
 /* ==================== stop editing here ===================== */
 
