@@ -16,7 +16,7 @@ function request(string $url, array $params = null):array{
 
 	// add the query string if we have parameters given
 	if(!empty($params)){
-		$url .= '?'.http_build_query($params, '', null, PHP_QUERY_RFC3986);
+		$url .= '?'.http_build_query(data: $params, encoding_type: PHP_QUERY_RFC3986);
 	}
 
 	// set up the stream context to add a header and user agent
@@ -33,7 +33,7 @@ function request(string $url, array $params = null):array{
 
 	// fire the request
 	$context         = stream_context_create($contextOptions);
-	$response        = file_get_contents($url, false, $context);
+	$response        = file_get_contents(filename: $url, context: $context);
 	$responseHeaders = get_headers($url, true, $context);
 
 	[$version, $status, $statustext] = explode(' ', $responseHeaders[0], 3);
@@ -48,17 +48,12 @@ function request(string $url, array $params = null):array{
  *
  * @see https://developer.twitter.com/en/docs/twitter-api/data-dictionary/object-model/tweet
  */
-function parseTweet(array|object $tweet):array{
-
-	if(is_array($tweet)){
-		$tweet = (object)$tweet; // cruel
-	}
-
-	$text       = $tweet->full_text;
+function parseTweet(object $tweet):array{
+	$text       = $tweet->full_text ?? $tweet->text ?? '';
 	$mediaItems = [];
 
 	foreach($tweet->entities->urls ?? [] as $entity){
-		$text = str_replace($entity->url, $entity->expanded_url, $text);
+		$text = str_replace($entity->url, $entity->expanded_url ?? $entity->url ?? '', $text);
 	}
 
 	foreach($tweet->entities->media ?? [] as $media){
@@ -69,17 +64,17 @@ function parseTweet(array|object $tweet):array{
 
 	return [
 		'id'                      => (int)$tweet->id,
-		'user_id'                 => (int)$tweet->user_id,
-		'user'                    => null,
+		'user_id'                 => (int)($tweet->user_id ?? $tweet->author_id ?? $tweet->user->id ?? 0),
+		'user'                    => null, // isset($tweet->user) ? parseUser($tweet->user) : null,
 		'created_at'              => strtotime($tweet->created_at),
 		'text'                    => $text,
 		'source'                  => $tweet->source,
-		'retweet_count'           => (int)$tweet->retweet_count,
-		'favorite_count'          => (int)$tweet->favorite_count,
-		'reply_count'             => (int)($tweet->reply_count ?? 0),
-		'quote_count'             => (int)($tweet->quote_count ?? 0),
-		'favorited'               => $tweet->favorited,
-		'retweeted'               => $tweet->retweeted,
+		'retweet_count'           => (int)($tweet->retweet_count ?? $tweet->public_metrics->retweet_count ?? 0),
+		'favorite_count'          => (int)($tweet->favorite_count ?? $tweet->public_metrics->like_count ?? 0),
+		'reply_count'             => (int)($tweet->reply_count ?? $tweet->public_metrics->reply_count ?? 0),
+		'quote_count'             => (int)($tweet->quote_count ?? $tweet->public_metrics->quote_count ?? 0),
+		'favorited'               => $tweet->favorited ?? false,
+		'retweeted'               => $tweet->retweeted ?? false,
 		'possibly_sensitive'      => $tweet->possibly_sensitive ?? false,
 		'in_reply_to_status_id'   => $tweet->in_reply_to_status_id ?? null,
 		'in_reply_to_user_id'     => $tweet->in_reply_to_user_id ?? null,
@@ -103,22 +98,18 @@ function parseTweet(array|object $tweet):array{
  *
  * @see https://developer.twitter.com/en/docs/twitter-api/data-dictionary/object-model/user
  */
-function parseUser(array|object $user):array{
-
-	if(is_array($user)){
-		$user = (object)$user;
-	}
+function parseUser(object $user):array{
 
 	foreach(['name', 'description', 'location', 'url'] as $var){
 		${$var} = preg_replace('/\s+/', ' ', $user->{$var} ?? '');
 	}
 
 	foreach($user->entities->description->urls ?? [] as $entity){
-		$description = str_replace($entity->url, $entity->expanded_url, $description);
+		$description = str_replace($entity->url, $entity->expanded_url ?? $entity->url ?? '', $description);
 	}
 
 	foreach($user->entities->url->urls ?? [] as $entity){
-		$url = str_replace($entity->url, $entity->expanded_url, $url);
+		$url = str_replace($entity->url, $entity->expanded_url ?? $entity->url ?? '', $url);
 	}
 
 	$screenName     = $user->screen_name ?? $user->username;
@@ -152,15 +143,11 @@ function parseUser(array|object $user):array{
 /**
  * @see https://developer.twitter.com/en/docs/twitter-api/data-dictionary/object-model/media
  */
-function parseMedia(array|object $media):array{
-
-	if(is_array($media)){
-		$media = (object)$media;
-	}
-
+function parseMedia(object $media):array{
 	return [
 		'id'                 => $media->id,
 		'media_key'          => $media->media_key ?? null,
+		'source_user_id'     => $media->source_user_id ?? null,
 		'type'               => $media->type,
 		'url'                => $media->media_url_https ?? $media->media_url,
 		'alt_text'           => $media->ext_alt_text ?? '',
