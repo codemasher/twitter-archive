@@ -55,12 +55,19 @@ $fromFile = true;
 /*
  * the storage path for the raw responses, a different directory per query is recommended
  */
-$dir = __DIR__.'/from-dril';
+$dir = __DIR__.'/../storage/from-dril';
+
+/*
+ * JSON output flags
+ *
+ * @see https://www.php.net/manual/en/json.constants.php
+ */
+$jsonFlags = JSON_THROW_ON_ERROR|JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_PRETTY_PRINT;
 
 /* ==================== stop editing here ===================== */
 
 if(!file_exists($dir)){
-	mkdir($dir);
+	mkdir(directory: $dir, recursive: true);
 }
 
 $dir          = realpath($dir);
@@ -68,19 +75,20 @@ $timelineJSON = sprintf('%s/%s.json', $dir, md5($query));
 $userJSON     = sprintf('%s/%s-users.json', $dir, md5($query));
 
 [$timeline, $users] = getTimeline($query, $fromFile);
-$tl = json_encode($timeline, JSON_THROW_ON_ERROR|JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_PRETTY_PRINT);
-$ul = json_encode($users, JSON_THROW_ON_ERROR|JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_PRETTY_PRINT);
+
+$tl = json_encode($timeline, $jsonFlags);
+$ul = json_encode($users, $jsonFlags);
 
 file_put_contents($timelineJSON, $tl);
 file_put_contents($userJSON, $ul);
 
-echo sprintf("timeline data for '%s' saved in: %s\n", $query, realpath($timelineJSON));
-echo sprintf("user data saved in: %s\n", realpath($userJSON));
+printf("timeline data for '%s' saved in: %s\n", $query, realpath($timelineJSON));
+printf("user data saved in: %s\n", realpath($userJSON));
 
-$tl = json_decode(file_get_contents($timelineJSON), true, 512, JSON_THROW_ON_ERROR);
-$ul = json_decode(file_get_contents($userJSON), true, 512, JSON_THROW_ON_ERROR);
+$tl = json_decode(json: file_get_contents($timelineJSON), associative: true, flags: JSON_THROW_ON_ERROR);
+$ul = json_decode(json: file_get_contents($userJSON), associative: true, flags: JSON_THROW_ON_ERROR);
 
-echo sprintf("fetched %s tweets from %s users\n", count($tl), count($ul));
+printf("fetched %s tweets from %s users\n", count($tl), count($ul));
 
 
 exit;
@@ -128,7 +136,7 @@ function getTimeline(string $query, bool $fromFile = false):array{
 			break;
 		}
 
-		echo sprintf("[%s] fetched data for '%s', cursor: %s\n", $count, $query, $lastCursor);
+		printf("[%s] fetched data for '%s', cursor: %s\n", $count, $query, $lastCursor);
 
 		$count++;
 
@@ -145,16 +153,8 @@ function getTimeline(string $query, bool $fromFile = false):array{
 		$tweet = $tweets[$id];
 
 		if($tweet['quoted_status_id'] !== null && isset($tweets[$tweet['quoted_status_id']])){
-			$qt = $tweets[$tweet['quoted_status_id']];
-
-#			if(isset($users[$qt['user_id']])){
-#				$qt['user'] = $users[$qt['user_id']];
-#			}
-
-			$tweet['quoted_status'] = $qt;
+			$tweet['quoted_status'] = $tweets[$tweet['quoted_status_id']];
 		}
-
-#		$tweet['user'] = $users[$tweet['user_id']];
 
 		$v = $tweet;
 	}
@@ -168,7 +168,7 @@ function getTimeline(string $query, bool $fromFile = false):array{
 function parseResponse(string $response, array &$tweets, array &$users, array &$timeline, string &$cursor):bool{
 
 	try{
-		$json = json_decode($response, false, 512, JSON_THROW_ON_ERROR);
+		$json = json_decode(json: $response, flags: JSON_THROW_ON_ERROR);
 	}
 	catch(Throwable $e){
 #		var_dump($response); // @todo: handle json error
