@@ -1,0 +1,19 @@
+{
+	"minimum-stability": "dev",
+	"prefer-stable": true,
+	"require": {
+		"php": "^8.1",
+		"ext-curl": "*",
+		"ext-json": "*",
+		"ext-mbstring": "*",
+		"ext-openssl": "*",
+		"chillerlan/php-dotenv": "^2.1.2",
+		"chillerlan/php-oauth-providers": "dev-main#48d83dc04879baea1468d39adf468565b5ef3de0",
+		"monolog/monolog": "^3.2"
+	},
+	"autoload": {
+		"psr-4": {
+			"codemasher\\TwitterArchive\\": "src"
+		}
+	}
+}
